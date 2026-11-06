@@ -8,6 +8,10 @@ const categories = [
   { id: '06', name: '용어의 정의', topics: [] }
 ];
 const modes = [{ id: 'theory', name: '이론' }, { id: 'past', name: '기출' }];
+const termModes = [
+  { id: 'fill', name: '빈칸 채우기', description: '핵심 단어와 구절을 직접 입력하여 암기' },
+  { id: 'written', name: '전체 서술형', description: '정의를 머릿속으로 떠올린 후 정답 확인' }
+];
 const app = document.querySelector('#app');
 const homeMarkup = app.innerHTML;
 const number = index => String(index + 1).padStart(2, '0');
@@ -19,11 +23,18 @@ function element(tag, className, text) {
   return node;
 }
 
-function card(id, name, route) {
+function card(id, name, route, description) {
   const item = element('li', '');
   const link = element('a', 'category-card');
   link.href = route;
-  link.append(element('span', 'card-number', id), element('span', 'card-label', name));
+  link.append(element('span', 'card-number', id));
+  if (description) {
+    const text = element('span', 'card-text');
+    text.append(element('span', 'card-label', name), element('span', 'card-description', description));
+    link.append(text);
+  } else {
+    link.append(element('span', 'card-label', name));
+  }
   const arrow = element('span', 'card-arrow');
   arrow.setAttribute('aria-hidden', 'true');
   link.append(arrow);
@@ -37,7 +48,11 @@ function resolveRoute(hash) {
   if (!hash || hash === '#/' || hash === '#') return { type: 'home' };
   const category = categories.find(item => item.id === parts[1]);
   if (parts[0] !== 'category' || !category) return { type: 'invalid' };
-  if (category.id === '06') return parts.length === 2 ? { type: 'material', category } : { type: 'invalid' };
+  if (category.id === '06') {
+    if (parts.length === 2) return { type: 'modes', category };
+    const termMode = termModes.find(item => item.id === parts[2]);
+    return parts.length === 3 && termMode ? { type: 'material', category, termMode } : { type: 'invalid' };
+  }
   if (parts.length === 2) return { type: 'topics', category };
   const index = category.topics.findIndex((_, i) => number(i) === parts[2]);
   if (index < 0) return { type: 'invalid' };
@@ -56,6 +71,7 @@ function parentRoute() {
 function screenName(route) {
   const view = resolveRoute(route);
   if (view.type === 'home' || view.type === 'invalid') return '홈';
+  if (view.termMode) return view.termMode.name;
   if (view.mode) return `${view.topic} · ${view.mode.name}`;
   return view.topic || view.category.name;
 }
@@ -86,8 +102,8 @@ function render(moveFocus = false) {
     });
     app.append(back);
     const section = element('section', 'detail-panel');
-    const title = view.type === 'invalid' ? '화면을 찾을 수 없습니다' : view.topic || view.category.name;
-    if (view.topic) section.append(element('p', 'detail-context', view.category.name));
+    const title = view.type === 'invalid' ? '화면을 찾을 수 없습니다' : view.termMode?.name || view.topic || view.category.name;
+    if (view.topic || view.termMode) section.append(element('p', 'detail-context', view.category.name));
     const heading = element('h1', 'detail-title', title);
     heading.id = 'detail-title';
     section.setAttribute('aria-labelledby', heading.id);
@@ -96,6 +112,8 @@ function render(moveFocus = false) {
       const list = element('ul', 'category-grid detail-list');
       if (view.type === 'topics') {
         view.category.topics.forEach((name, index) => list.append(card(number(index), name, `#/category/${view.category.id}/${number(index)}`)));
+      } else if (view.category.id === '06') {
+        termModes.forEach((mode, index) => list.append(card(number(index), mode.name, `#/category/06/${mode.id}`, mode.description)));
       } else {
         modes.forEach((mode, index) => list.append(card(number(index), mode.name, `#/category/${view.category.id}/${view.topicId}/${mode.id}`)));
       }
