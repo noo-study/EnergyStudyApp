@@ -5,13 +5,15 @@ const categories = [
   { id: '03', name: '전기설비', topics: ['기본개념', '변압기', '전동기', '조명설비'] },
   { id: '04', name: '신재생설비', topics: ['태양광', '지열'] },
   { id: '05', name: 'ZEB평가', topics: ['제로에너지건축물인증', '건축물에너지절약설계기준'] },
-  { id: '06', name: '용어의 정의', topics: [] }
+  { id: '06', name: '법령 암기', topics: [] }
 ];
+const lawSections = [{ id: 'terms', name: '용어의 정의' }, { id: 'law', name: '법령 빈칸 채우기' }];
 const modes = [{ id: 'theory', name: '이론' }, { id: 'past', name: '기출' }];
 const termModes = [
   { id: 'fill', name: '빈칸 채우기', description: '핵심 단어와 구절을 직접 입력하여 암기' },
   { id: 'written', name: '전체 서술형', description: '정의를 머릿속으로 떠올린 후 정답 확인' }
 ];
+const reviewStorageKey = 'bea.fillStudy.statuses.v1';
 const app = document.querySelector('#app');
 const homeMarkup = app.innerHTML;
 const number = index => String(index + 1).padStart(2, '0');
@@ -49,9 +51,16 @@ function resolveRoute(hash) {
   const category = categories.find(item => item.id === parts[1]);
   if (parts[0] !== 'category' || !category) return { type: 'invalid' };
   if (category.id === '06') {
-    if (parts.length === 2) return { type: 'modes', category };
-    const termMode = termModes.find(item => item.id === parts[2]);
-    return parts.length === 3 && termMode ? { type: 'material', category, termMode } : { type: 'invalid' };
+    if (parts.length === 2) return { type: 'topics', category };
+    // 이전에 사용한 용어 학습 주소도 계속 열 수 있게 유지합니다.
+    const legacyMode = termModes.find(item => item.id === parts[2]);
+    if (parts.length === 3 && legacyMode) return { type: 'material', category, topic: '용어의 정의', termMode: legacyMode };
+    const section = lawSections.find(item => item.id === parts[2]);
+    if (!section) return { type: 'invalid' };
+    if (parts.length === 3) return { type: section.id === 'terms' ? 'modes' : 'material', category, topic: section.name };
+    const termMode = termModes.find(item => item.id === parts[3]);
+    return section.id === 'terms' && parts.length === 4 && termMode
+      ? { type: 'material', category, topic: section.name, termMode } : { type: 'invalid' };
   }
   if (parts.length === 2) return { type: 'topics', category };
   const index = category.topics.findIndex((_, i) => number(i) === parts[2]);
@@ -63,6 +72,7 @@ function resolveRoute(hash) {
 }
 
 function parentRoute() {
+  if (/^#\/category\/06\/(fill|written)$/.test(location.hash)) return '#/category/06/terms';
   const parts = location.hash.split('/');
   parts.pop();
   return parts.length > 2 ? parts.join('/') : '#/';
@@ -103,7 +113,7 @@ function render(moveFocus = false) {
     app.append(back);
     const section = element('section', 'detail-panel');
     const title = view.type === 'invalid' ? '화면을 찾을 수 없습니다' : view.termMode?.name || view.topic || view.category.name;
-    if (view.topic || view.termMode) section.append(element('p', 'detail-context', view.category.name));
+    if (view.topic || view.termMode) section.append(element('p', 'detail-context', view.termMode ? '용어의 정의' : view.category.name));
     const heading = element('h1', 'detail-title', title);
     heading.id = 'detail-title';
     section.setAttribute('aria-labelledby', heading.id);
@@ -111,9 +121,13 @@ function render(moveFocus = false) {
     if (view.type === 'topics' || view.type === 'modes') {
       const list = element('ul', 'category-grid detail-list');
       if (view.type === 'topics') {
-        view.category.topics.forEach((name, index) => list.append(card(number(index), name, `#/category/${view.category.id}/${number(index)}`)));
+        if (view.category.id === '06') {
+          lawSections.forEach((item, index) => list.append(card(number(index), item.name, `#/category/06/${item.id}`)));
+        } else {
+          view.category.topics.forEach((name, index) => list.append(card(number(index), name, `#/category/${view.category.id}/${number(index)}`)));
+        }
       } else if (view.category.id === '06') {
-        termModes.forEach((mode, index) => list.append(card(number(index), mode.name, `#/category/06/${mode.id}`, mode.description)));
+        termModes.forEach((mode, index) => list.append(card(number(index), mode.name, `#/category/06/terms/${mode.id}`, mode.description)));
       } else {
         modes.forEach((mode, index) => list.append(card(number(index), mode.name, `#/category/${view.category.id}/${view.topicId}/${mode.id}`)));
       }
@@ -265,6 +279,32 @@ function gradeFillAnswer(candidate, input) {
     .some(value => normalizeFillAnswer(value) === answer);
 }
 
+// 이 앱 전용 키만 읽고 씁니다. 잘못된 기존 값은 덮어쓰지 않습니다.
+function readReviewStates() {
+  const raw = localStorage.getItem(reviewStorageKey);
+  if (raw === null) return [];
+  const records = JSON.parse(raw);
+  const ids = new Set();
+  if (!Array.isArray(records)) throw new Error('복습 저장 형식 오류');
+  for (const record of records) {
+    if (!record || typeof record.id !== 'string' || !record.id.trim() || ids.has(record.id) ||
+        !['review', 'completed'].includes(record.status) ||
+        Object.keys(record).length !== 2) throw new Error('복습 저장 형식 오류');
+    ids.add(record.id);
+  }
+  return records;
+}
+
+function registerReview(id) {
+  if (typeof id !== 'string' || !id.trim()) throw new Error('문제 ID 오류');
+  const records = readReviewStates();
+  const existing = records.find(record => record.id === id);
+  if (existing) return existing.status; // completed도 임의로 review로 바꾸지 않습니다.
+  records.push({ id, status: 'review' });
+  localStorage.setItem(reviewStorageKey, JSON.stringify(records));
+  return 'review';
+}
+
 async function readFillTerms() {
   const data = document.querySelector('#fill-study-data');
   if (!data) throw new Error('학습자료 설정이 없습니다.');
@@ -312,6 +352,31 @@ async function mountFillStudy(section) {
       const question = element('form', 'fill-question');
       question.append(element('p', 'fill-progress', `${index + 1} / ${terms.length}`));
       question.append(element('h2', 'fill-term', term.term));
+      const review = element('button', 'fill-button fill-review', '다시 볼 문제');
+      review.type = 'button';
+      review.setAttribute('aria-pressed', 'false');
+      const reviewNotice = element('p', 'fill-review-notice');
+      reviewNotice.setAttribute('role', 'status');
+      function showRegistered(status) {
+        review.textContent = '복습 등록됨';
+        review.setAttribute('aria-pressed', 'true');
+        review.disabled = true;
+        reviewNotice.textContent = status === 'completed' ? '기존 학습 완료 상태를 유지합니다.' : '';
+      }
+      try {
+        const saved = readReviewStates().find(record => record.id === term.id);
+        if (saved) showRegistered(saved.status);
+      } catch {
+        reviewNotice.textContent = '복습 등록 상태를 읽을 수 없습니다. 기존 저장 데이터는 변경하지 않았습니다.';
+      }
+      review.addEventListener('click', () => {
+        try {
+          showRegistered(registerReview(term.id));
+        } catch {
+          reviewNotice.textContent = '복습 등록을 저장하지 못했습니다. 저장소 접근 권한이나 여유 공간을 확인한 뒤 다시 눌러 주세요.';
+        }
+      });
+      question.append(review, reviewNotice);
       const definition = element('p', 'fill-definition');
       const fields = [];
       for (const part of term.definitionParts) {

@@ -127,6 +127,10 @@ body[data-screen="ivory"] .detail-panel { background: var(--warm-ivory); border:
 .fill-original summary { min-height: 44px; padding-block: 10px; cursor: pointer; font-size: 14px; }
 .fill-next { margin-top: 16px; }
 .fill-source { margin: 20px 0 0; }
+.fill-review { margin-top: 12px; background: var(--mono-light-gray); color: var(--blue-gray); }
+.fill-review[aria-pressed="true"] { background: var(--sage-green); color: var(--blue-gray); opacity: 1; }
+.fill-review-notice { margin: 8px 0; font-size: 12px; color: var(--mono-gray); overflow-wrap: anywhere; }
+.fill-review-notice:empty { display: none; }
 .fill-select:focus-visible, .fill-input:focus-visible, .fill-button:focus-visible, .fill-original summary:focus-visible { outline: 2px solid var(--blue-gray); outline-offset: 3px; }
 
 @media (max-width: 380px) {

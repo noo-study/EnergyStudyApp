@@ -48,9 +48,18 @@ async function main() {
     forward() { apply(entries[++cursor].hash); events.popstate(); }
   };
   let fetchMode = 'fail';
+  const storageKey = 'bea.fillStudy.statuses.v1';
+  const stored = new Map([['existing-user-data', '{"keep":true}']]);
+  const writes = [];
+  let readFailure = false;
+  let writeFailure = false;
+  const storage = {
+    getItem(key) { if (readFailure) throw new Error('Read denied'); return stored.has(key) ? stored.get(key) : null; },
+    setItem(key, value) { if (writeFailure) throw new Error('Quota exceeded'); writes.push({ key, value }); stored.set(key, value); }
+  };
   const context = vm.createContext({
     document: { querySelector: selector => selector === '#app' ? app : data, createElement: tag => new Node(tag), body: { dataset: {} }, addEventListener() {} },
-    location, history, URL, AbortController, setTimeout, clearTimeout,
+    location, history, URL, AbortController, setTimeout, clearTimeout, localStorage: storage,
     window: { addEventListener: (name, callback) => { events[name] = callback; }, scrollTo() {} },
     fetch: async url => {
       assert.equal(new URL(url).pathname, '/EnergyStudyApp/data/terms.json');
@@ -58,10 +67,34 @@ async function main() {
       return { ok: true, json: async () => [] };
     }
   });
-  for (const key of ['localStorage', 'indexedDB', 'caches']) Object.defineProperty(context, key, { get() { throw new Error(`Unexpected storage access: ${key}`); } });
+  for (const key of ['indexedDB', 'caches']) Object.defineProperty(context, key, { get() { throw new Error(`Unexpected storage access: ${key}`); } });
   const run = script => vm.runInContext(script, context);
   const flush = () => new Promise(resolve => setImmediate(resolve));
   vm.runInContext(fs.readFileSync(path.join(root, 'app.js'), 'utf8'), context);
+  assert.equal(app.querySelectorAll('.card-label')[5].textContent, '법령 암기');
+  run("navigate('#/category/06')");
+  assert.equal(context.document.body.dataset.screen, 'sage');
+  assert.equal(app.querySelector('h1').textContent, '법령 암기');
+  assert.deepEqual(app.querySelectorAll('.card-label').map(node => node.textContent), ['용어의 정의', '법령 빈칸 채우기']);
+  assert.deepEqual(app.querySelectorAll('a').map(node => node.href), ['#/category/06/terms', '#/category/06/law']);
+  run("navigate('#/category/06/law')");
+  assert.equal(app.querySelector('h1').textContent, '법령 빈칸 채우기');
+  assert.equal(app.querySelector('.material-notice').textContent, '학습자료 준비 중');
+  assert.equal(app.querySelector('form'), null);
+  app.querySelector('.back-button').events.click(); assert.equal(location.hash, '#/category/06');
+  history.forward(); assert.equal(location.hash, '#/category/06/law'); history.back();
+  run("navigate('#/category/06/terms')");
+  assert.equal(context.document.body.dataset.screen, 'sage');
+  assert.equal(app.querySelector('h1').textContent, '용어의 정의');
+  assert.deepEqual(app.querySelectorAll('a').map(node => node.href), ['#/category/06/terms/fill', '#/category/06/terms/written']);
+  run("navigate('#/category/06/terms/fill')"); await flush();
+  assert.equal(app.querySelector('.material-notice').textContent, '등록된 학습자료가 없습니다');
+  app.querySelector('.back-button').events.click(); assert.equal(location.hash, '#/category/06/terms');
+  run("navigate('#/category/06/terms/written')");
+  assert.equal(app.querySelector('.material-notice').textContent, '학습자료 준비 중');
+  app.querySelector('.back-button').events.click();
+  app.querySelector('.back-button').events.click(); assert.equal(location.hash, '#/category/06');
+  app.querySelector('.back-button').events.click(); assert.equal(location.hash, '');
   run("navigate('#/category/06/fill')"); await flush();
   assert.equal(app.querySelector('.material-notice').textContent, '등록된 학습자료가 없습니다');
   assert.equal(app.querySelector('form'), null);
@@ -74,6 +107,14 @@ async function main() {
     blankSets: [['a'], ['b', 'c']], source: { law: '테스트용 출처', article: '테스트용 항목' }
   };
   data.textContent = JSON.stringify([fixture, { ...fixture, id: 'test-only-2' }]);
+  // 새 경로도 기존 빈칸 학습 화면을 그대로 사용합니다.
+  history.replaceState({ bea: true, depth: 0 }, '', '#/category/06/terms/fill');
+  run('render()'); await flush(); assert.equal(app.querySelectorAll('input').length, 2);
+  app.querySelector('.back-button').events.click(); assert.equal(location.hash, '#/category/06/terms');
+  // 나머지 기존 테스트는 구 주소 호환성과 저장 데이터 보존도 함께 검사합니다.
+  history.replaceState({ bea: true, depth: 0 }, '', 'https://example.test/EnergyStudyApp/index.html');
+  run('render()');
+  run("navigate('#/category/06/fill')");
   run('render()'); await flush();
   assert.equal(app.querySelectorAll('input').length, 2);
   // 함수 검증은 앱과 동일한 실행 컨텍스트를 사용합니다.
@@ -89,7 +130,19 @@ async function main() {
   assert.throws(() => run('validateFillTerms([{...fixture, blankSets: [["unknown"]]}])'));
   assert.throws(() => run('validateFillTerms([{...fixture, source: {}}])'));
   const inputs = app.querySelectorAll('input'); inputs[0].value = 'ALPHA'; inputs[1].value = 'TYPO';
+  assert.equal(writes.length, 0); // 학습·입력만으로는 저장하지 않습니다.
+  const reviewButton = app.querySelector('.fill-review');
+  assert.equal(reviewButton.textContent, '다시 볼 문제');
+  reviewButton.events.click();
+  assert.equal(reviewButton.textContent, '복습 등록됨');
+  assert.equal(reviewButton.disabled, true);
+  assert.equal(reviewButton['aria-pressed'], 'true');
+  assert.equal(inputs[0].value, 'ALPHA');
+  assert.deepEqual(JSON.parse(stored.get(storageKey)), [{ id: fixture.id, status: 'review' }]);
+  reviewButton.events.click(); run(`registerReview('${fixture.id}')`);
+  assert.equal(writes.length, 1); // 중복 요청에서도 추가 저장하지 않습니다.
   app.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(writes.length, 1); // 오답은 자동 등록하지 않습니다.
   assert.equal(app.querySelector('.fill-summary').textContent, '2개 중 1개 정답');
   assert.equal(inputs[0]['aria-invalid'], 'false'); assert.equal(inputs[1]['aria-invalid'], 'true');
   assert(inputs.every(input => input.readOnly));
@@ -101,6 +154,14 @@ async function main() {
   assert.equal(app.querySelector('.fill-original'), null); assert.equal(app.querySelector('.fill-summary').textContent, undefined);
   const select = app.querySelector('select'); select.value = 'varied'; select.events.change();
   assert(app.querySelectorAll('input').length > 0);
+  assert.equal(app.querySelector('.fill-review').textContent, '다시 볼 문제');
+  app.querySelector('form').events.submit({ preventDefault() {} });
+  assert.equal(writes.length, 1);
+  app.querySelector('.fill-review').events.click(); // 채점 후에도 수동 등록 가능
+  assert.equal(JSON.parse(stored.get(storageKey)).length, 2);
+  run('render()'); await flush();
+  assert.equal(app.querySelector('.fill-review').textContent, '복습 등록됨');
+  assert.equal(stored.get('existing-user-data'), '{"keep":true}');
   app.querySelector('.back-button').events.click(); assert.equal(location.hash, '');
   history.forward(); await flush(); assert(app.querySelector('form'));
   run("navigate('#/category/06/written')"); assert.equal(app.querySelector('.material-notice').textContent, '학습자료 준비 중');
@@ -120,8 +181,54 @@ async function main() {
   delete data['data-src']; data.textContent = '[]';
   run('render()'); run("navigate('#/category/06/written')"); await flush();
   assert.equal(app.querySelector('.material-notice').textContent, '학습자료 준비 중');
+  // 저장소 오류 및 기존 상태 보존: 모든 실패는 학습 화면을 유지해야 합니다.
+  data.textContent = JSON.stringify([fixture]);
+  const validSaved = stored.get(storageKey);
+  for (const bad of ['not-json', '{}', '[{"id":"old","status":"unknown"}]']) {
+    stored.set(storageKey, bad);
+    run("navigate('#/category/06/fill')"); await flush();
+    assert(app.querySelector('form'));
+    app.querySelector('.fill-review').events.click();
+    assert(app.querySelector('.fill-review-notice').textContent.includes('저장하지 못했습니다'));
+    assert.equal(stored.get(storageKey), bad);
+  }
+  stored.set(storageKey, validSaved); readFailure = true;
+  run('render()'); await flush();
+  assert(app.querySelector('.fill-review-notice').textContent.includes('읽을 수 없습니다'));
+  app.querySelector('.fill-review').events.click();
+  assert(app.querySelector('input')); assert.equal(stored.get(storageKey), validSaved);
+  readFailure = false;
+  Object.defineProperty(context, 'localStorage', { configurable: true, get() { throw new Error('SecurityError'); } });
+  run('render()'); await flush();
+  assert(app.querySelector('.fill-review-notice').textContent.includes('읽을 수 없습니다'));
+  app.querySelector('.fill-review').events.click(); assert(app.querySelector('form'));
+  Object.defineProperty(context, 'localStorage', { configurable: true, writable: true, value: storage });
+  const prior = JSON.stringify([{ id: 'unrelated-term', status: 'completed' }]);
+  stored.set(storageKey, prior); writeFailure = true;
+  run('render()'); await flush(); app.querySelector('.fill-review').events.click();
+  assert.equal(stored.get(storageKey), prior);
+  assert.equal(app.querySelector('.fill-review').textContent, '다시 볼 문제');
+  assert(app.querySelector('.fill-review-notice').textContent.includes('저장하지 못했습니다'));
+  app.querySelector('form').events.submit({ preventDefault() {} });
+  assert(app.querySelector('.fill-summary').textContent.includes('정답'));
+  writeFailure = false; app.querySelector('.fill-review').events.click();
+  assert.deepEqual(JSON.parse(stored.get(storageKey)), [{ id: 'unrelated-term', status: 'completed' }, { id: fixture.id, status: 'review' }]);
+  const completed = JSON.stringify([{ id: fixture.id, status: 'completed' }]);
+  stored.set(storageKey, completed); run('render()'); await flush();
+  assert.equal(app.querySelector('.fill-review').textContent, '복습 등록됨');
+  assert.equal(run(`registerReview('${fixture.id}')`), 'completed');
+  assert.equal(stored.get(storageKey), completed);
+  // 새 JavaScript 실행 컨텍스트에서도 동일한 저장소로 등록 상태가 복원됩니다.
+  const restarted = vm.createContext({ document: context.document, window: context.window, location, history,
+    URL, AbortController, setTimeout, clearTimeout, localStorage: storage, fetch: context.fetch });
+  vm.runInContext(fs.readFileSync(path.join(root, 'app.js'), 'utf8'), restarted); await flush();
+  assert.equal(app.querySelector('.fill-review').textContent, '복습 등록됨');
+  assert.equal(stored.get('existing-user-data'), '{"keep":true}');
+  assert(writes.every(write => write.key === storageKey));
+  assert(writes.every(write => JSON.parse(write.value).every(record =>
+    Object.keys(record).sort().join(',') === 'id,status')));
   const source = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   assert.equal(JSON.parse(source.match(/<script id="fill-study-data"[^>]*>([\s\S]*?)<\/script>/)[1]).length, 0);
-  console.log('PASS: empty data, exact/space/alias/typo grading, independent blanks, original/source, fixed/registered-variable modes, next reset, history, 30 existing routes, written screen, fetch failure/retry, stale response, no storage access');
+  console.log('PASS: blank study/grading/history regression; manual-only registration before/after grading; deduplication; restart persistence; read/write/invalid-data errors; completed and unrelated data preserved; ID/status only; no IndexedDB/cache access');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
