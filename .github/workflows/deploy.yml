@@ -34,6 +34,35 @@ jobs:
           mkdir -p _site
           cp index.html styles.css app.js manifest.webmanifest icon.svg icon-180.png icon-192.png icon-512.png _site/
 
+      # 버전은 배포 사본에만 반영합니다. 저장소의 원본은 수정하지 않습니다.
+      - name: Stamp deployment version
+        env:
+          DEPLOY_VERSION: ${{ github.sha }}
+          DEPLOY_BUILD: ${{ github.run_number }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          version = os.environ['DEPLOY_VERSION']
+          build = int(os.environ['DEPLOY_BUILD'])
+          root = Path('_site')
+          html = (root / 'index.html').read_text(encoding='utf-8-sig')
+          assert html.count('href="styles.css?v=3"') == 1
+          assert html.count('src="app.js"') == 1
+          html = html.replace('href="styles.css?v=3"', f'href="styles.css?v={version}"')
+          html = html.replace('src="app.js"', f'src="app.js?v={version}"')
+          (root / 'index.html').write_text(html, encoding='utf-8')
+          script = (root / 'app.js').read_text(encoding='utf-8-sig')
+          assert script.count("'__DEPLOY_VERSION__'") == 1
+          assert script.count('/* DEPLOY_BUILD */ 0') == 1
+          script = script.replace("'__DEPLOY_VERSION__'", json.dumps(version))
+          script = script.replace('/* DEPLOY_BUILD */ 0', str(build))
+          (root / 'app.js').write_text(script, encoding='utf-8')
+          (root / 'version.json').write_text(json.dumps({'version': version, 'build': build}), encoding='utf-8')
+          PY
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:

@@ -150,3 +150,74 @@ window.addEventListener('popstate', () => render(true));
 window.addEventListener('hashchange', () => render(true));
 if (!history.state?.bea) history.replaceState({ bea: true, depth: 0 }, '', location.href);
 render();
+
+// 배포할 때만 실제 커밋 ID와 실행 번호로 치환됩니다. 로컬 파일에서는 확인하지 않습니다.
+const deploymentVersion = '__DEPLOY_VERSION__';
+const deploymentBuild = /* DEPLOY_BUILD */ 0;
+let updateCheckRunning = false;
+let lastUpdateCheck = 0;
+let dismissedVersion = '';
+let updateNotice;
+
+function showUpdateNotice(version) {
+  if (version === dismissedVersion) return;
+  updateNotice?.remove();
+  updateNotice = element('section', 'update-notice');
+  updateNotice.setAttribute('aria-label', '앱 업데이트');
+  const message = element('p', 'update-message', '새 버전이 있습니다. 지금 갱신할까요?');
+  message.setAttribute('role', 'status');
+  const actions = element('div', 'update-actions');
+  const refresh = element('button', 'update-button', '지금 갱신');
+  refresh.type = 'button';
+  refresh.addEventListener('click', () => {
+    // 주소의 화면(#)과 다른 쿼리는 유지하고 HTML을 새로운 주소로 요청합니다.
+    const url = new URL(location.href);
+    url.searchParams.set('app-update', version);
+    url.searchParams.set('update-check', String(Date.now()));
+    location.replace(url.href);
+  });
+  const later = element('button', 'update-button update-later', '나중에');
+  later.type = 'button';
+  later.addEventListener('click', () => {
+    dismissedVersion = version; // 현재 실행 중에만 기억하며 저장 데이터는 건드리지 않습니다.
+    updateNotice.remove();
+    updateNotice = null;
+  });
+  actions.append(refresh, later);
+  updateNotice.append(message, actions);
+  app.before(updateNotice);
+}
+
+async function checkForUpdate() {
+  if (!/^https?:$/.test(location.protocol) || !deploymentBuild ||
+      document.visibilityState === 'hidden' || updateCheckRunning ||
+      Date.now() - lastUpdateCheck < 60000) return;
+  updateCheckRunning = true;
+  lastUpdateCheck = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const url = new URL('./version.json', location.href);
+    url.searchParams.set('check', String(Date.now()));
+    const response = await fetch(url.href, { cache: 'no-store', signal: controller.signal });
+    if (!response.ok) return;
+    const latest = await response.json();
+    // 오래된 CDN 응답이나 잘못된 응답으로는 갱신 안내를 표시하지 않습니다.
+    if (/^[a-f0-9]{40}$/.test(latest.version) && Number.isSafeInteger(latest.build) &&
+        latest.build > deploymentBuild && latest.version !== deploymentVersion) {
+      showUpdateNotice(latest.version);
+    }
+  } catch {
+    // 오프라인이나 통신 오류가 발생해도 현재 학습 화면은 그대로 유지합니다.
+  } finally {
+    clearTimeout(timeout);
+    updateCheckRunning = false;
+  }
+}
+
+window.addEventListener('pageshow', checkForUpdate);
+window.addEventListener('online', checkForUpdate);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkForUpdate();
+});
+checkForUpdate();

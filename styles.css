@@ -74,6 +74,12 @@ h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.03em; }
 .card-label { min-width: 0; font-size: 16px; font-weight: 700; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .card-text { min-width: 0; }
 .card-description { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; color: var(--mono-gray); overflow-wrap: anywhere; }
+.update-notice { width: calc(100% - 40px); max-width: 640px; margin: 0 auto 20px; padding: 16px; flex-shrink: 0; border: 1px solid var(--border-color); border-radius: 14px; background: var(--mono-white); color: var(--blue-gray); }
+.update-message { margin: 0 0 8px; font-size: 14px; }
+.update-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.update-button { min-width: 44px; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 8px; background: var(--blue-gray); color: var(--mono-white); font: inherit; font-size: 14px; cursor: pointer; }
+.update-later { background: var(--mono-light-gray); color: var(--blue-gray); }
+.update-button:focus-visible { outline: 3px solid var(--blue-gray); outline-offset: 3px; }
 /* 카드 링크의 방향을 나타내는 장식용 화살표입니다. */
 .card-arrow { width: 7px; height: 7px; margin-left: auto; margin-right: 3px; flex-shrink: 0; border-top: 1.5px solid #97a1ae; border-right: 1.5px solid #97a1ae; transform: rotate(45deg); }
 .site-footer {
