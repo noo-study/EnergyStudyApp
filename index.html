@@ -16,13 +16,222 @@
     <link rel="stylesheet" href="styles.css?v=3">
     <script src="app.js" defer></script>
     <!-- 검증된 용어 데이터만 등록합니다. 외부 JSON 연결 시 data-src 속성을 사용합니다. -->
-    <script id="fill-study-data" type="application/json">[]</script>
+    <script id="fill-study-data" type="application/json">
+[
+  {
+    "id": "energy-saving-design-art5-10-cha",
+    "term": "외단열",
+    "definition": "\"외단열\"이라 함은 건축물 각 부위의 단열에서 단열재를 구조체의 외기측에 설치하는 단열방법으로서 모서리 부위를 포함하여 시공하는 등 열교를 차단한 경우를 말한다.",
+    "blanks": [
+      {
+        "id": "b1",
+        "start": 31,
+        "end": 34,
+        "answer": "구조체",
+        "core": false,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b2",
+        "start": 36,
+        "end": 39,
+        "answer": "외기측",
+        "core": true,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b3",
+        "start": 54,
+        "end": 60,
+        "answer": "모서리 부위",
+        "core": false,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b4",
+        "start": 74,
+        "end": 76,
+        "answer": "열교",
+        "core": true,
+        "acceptedAnswers": []
+      }
+    ],
+    "blankSets": [
+      [
+        "b2",
+        "b4"
+      ],
+      [
+        "b1",
+        "b3"
+      ]
+    ],
+    "source": {
+      "law": "건축물의 에너지절약설계기준",
+      "noticeNumber": "국토교통부고시 제2025-738호",
+      "effectiveDate": "2025-12-31",
+      "article": "제5조제10호 차목",
+      "pdfPages": [
+        4
+      ]
+    }
+  },
+  {
+    "id": "energy-saving-design-art5-10-ka",
+    "term": "방습층",
+    "definition": "\"방습층\"이라 함은 습한 공기가 구조체에 침투하여 결로발생의 위험이 높아지는 것을 방지하기 위해 설치하는 투습도가 24시간당 30g/㎡ 이하 또는 투습계수 0.28g/㎡ㆍhㆍ㎜Hg 이하의 투습저항을 가진 층을 말한다.(시험방법은 한국산업표준 KS T 1305 방습포장재료의 투습도 시험방법 또는 KS F 2607 건축 재료의 투습성 측정 방법에서 정하는 바에 따른다) 다만, 단열재 또는 단열재의 내측에 사용되는 마감재가 방습층으로서 요구되는 성능을 가지는 경우에는 그 재료를 방습층으로 볼 수 있다.",
+    "blanks": [
+      {
+        "id": "b1",
+        "start": 28,
+        "end": 32,
+        "answer": "결로발생",
+        "core": true,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b2",
+        "start": 64,
+        "end": 78,
+        "answer": "24시간당 30g/㎡ 이하",
+        "core": true,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b3",
+        "start": 87,
+        "end": 103,
+        "answer": "0.28g/㎡ㆍhㆍ㎜Hg 이하",
+        "core": true,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b4",
+        "start": 135,
+        "end": 144,
+        "answer": "KS T 1305",
+        "core": false,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b5",
+        "start": 165,
+        "end": 174,
+        "answer": "KS F 2607",
+        "core": false,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b6",
+        "start": 210,
+        "end": 234,
+        "answer": "단열재 또는 단열재의 내측에 사용되는 마감재",
+        "core": false,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b7",
+        "start": 236,
+        "end": 250,
+        "answer": "방습층으로서 요구되는 성능",
+        "core": false,
+        "acceptedAnswers": []
+      }
+    ],
+    "blankSets": [
+      [
+        "b1",
+        "b2",
+        "b3"
+      ],
+      [
+        "b4",
+        "b5"
+      ],
+      [
+        "b6",
+        "b7"
+      ]
+    ],
+    "source": {
+      "law": "건축물의 에너지절약설계기준",
+      "noticeNumber": "국토교통부고시 제2025-738호",
+      "effectiveDate": "2025-12-31",
+      "article": "제5조제10호 카목",
+      "pdfPages": [
+        4,
+        5
+      ]
+    }
+  },
+  {
+    "id": "energy-saving-design-art5-10-ta",
+    "term": "평균 열관류율",
+    "definition": "\"평균 열관류율\"이라 함은 지붕(천창 등 투명 외피부위를 포함하지 않는다), 바닥, 외벽(창 및 문을 포함한다) 등의 열관류율 계산에 있어 세부 부위별로 열관류율 값이 다를 경우 이를 면적으로 가중평균하여 나타낸 것을 말한다. 단, 평균열관류율은 중심선 치수를 기준으로 계산한다.",
+    "blanks": [
+      {
+        "id": "b1",
+        "start": 18,
+        "end": 40,
+        "answer": "천창 등 투명 외피부위를 포함하지 않는다",
+        "core": false,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b2",
+        "start": 50,
+        "end": 61,
+        "answer": "창 및 문을 포함한다",
+        "core": false,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b3",
+        "start": 103,
+        "end": 112,
+        "answer": "면적으로 가중평균",
+        "core": true,
+        "acceptedAnswers": []
+      },
+      {
+        "id": "b4",
+        "start": 138,
+        "end": 144,
+        "answer": "중심선 치수",
+        "core": true,
+        "acceptedAnswers": []
+      }
+    ],
+    "blankSets": [
+      [
+        "b3",
+        "b4"
+      ],
+      [
+        "b1",
+        "b2"
+      ]
+    ],
+    "source": {
+      "law": "건축물의 에너지절약설계기준",
+      "noticeNumber": "국토교통부고시 제2025-738호",
+      "effectiveDate": "2025-12-31",
+      "article": "제5조제10호 타목",
+      "pdfPages": [
+        5
+      ]
+    }
+  }
+]
+    </script>
   </head>
   <body>
     <header class="site-header">
       <div class="header-inner">
-        <img class="brand-icon" src="icon.svg" width="44" height="44" alt="BEA">
-        <span class="brand-name">에평사</span>
+        <a class="brand-home" href="#/" aria-label="에평사 홈으로 이동">
+          <img class="brand-icon" src="icon.svg" width="44" height="44" alt="BEA">
+          <span class="brand-name">에평사</span>
+        </a>
       </div>
     </header>
 

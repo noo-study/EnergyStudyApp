@@ -37,6 +37,9 @@
   --mono-white: #ffffff;
   --page-background: #f5f6f8;
   --border-color: #e7eaee;
+  --answer-correct: #286b48;
+  --answer-incorrect: #b23c3c;
+  --sage-green-text: #48634b;
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
   font-weight: 400;
   color: var(--blue-gray);
@@ -57,6 +60,8 @@ body {
 body > header, body > main, body > footer { flex-shrink: 0; }
 .header-inner, main, .site-footer { width: calc(100% - 40px); max-width: 640px; margin-inline: auto; }
 .header-inner { padding-block: 22px 18px; display: flex; align-items: center; gap: 12px; }
+.brand-home { display: inline-flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; cursor: pointer; border-radius: 10px; }
+.brand-home:focus-visible { outline: 2px solid var(--blue-gray); outline-offset: 4px; }
 .brand-icon { display: block; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--border-color); border-radius: 10px; }
 .brand-name { font-size: 22px; font-weight: 700; letter-spacing: -.04em; }
 main { padding-bottom: 32px; }
@@ -109,29 +114,46 @@ body[data-screen="ivory"] .detail-panel { background: var(--warm-ivory); border:
 .material-notice { margin: 24px 0 0; color: var(--mono-gray); }
 .fill-study { margin-top: 24px; }
 .fill-mode { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
-.fill-select, .fill-input { font: inherit; font-size: 16px; color: var(--blue-gray); background: var(--mono-white); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; min-height: 44px; max-width: 100%; }
+.fill-mode-title { font-weight: 700; }
+.fill-select, .fill-input { font: inherit; font-size: 16px; color: var(--blue-gray); background: var(--mono-white); border: 1px solid var(--border-color); border-radius: 8px; max-width: 100%; }
+.fill-select { padding: 10px; min-height: 44px; }
 .fill-question { margin-top: 20px; padding: 18px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--mono-white); }
 .fill-progress, .fill-source { font-size: 12px; color: var(--mono-gray); }
 .fill-progress { margin: 0 0 8px; }
 .fill-term { font-weight: 700; }
 .fill-definition { line-height: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
-.fill-field { display: inline-flex; flex-direction: column; vertical-align: middle; width: 190px; max-width: 100%; margin: 4px 2px; white-space: normal; }
-.fill-input-label { font-size: 12px; color: var(--mono-gray); }
-.fill-input { display: block; width: 100%; }
-.fill-input[aria-invalid="true"] { border-color: var(--blue-gray); border-style: dashed; }
-.fill-input[aria-invalid="false"] { border: 2px solid var(--sage-green); }
-.fill-result { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.fill-definition--exercise { font-size: 16px; line-height: 40px; }
+.fill-progress + .fill-definition--exercise { margin-top: 0; }
+.fill-term-emphasis { font-weight: 700; }
+.fill-field { display: inline-block; vertical-align: middle; width: var(--fill-width); max-width: calc(100% - 4px); margin: 0 2px; line-height: 0; white-space: normal; }
+.fill-field--short { --fill-width: 7rem; }
+.fill-field--medium { --fill-width: 10rem; }
+.fill-field--long { --fill-width: 14rem; }
+.fill-field--wide { --fill-width: 18rem; }
+.fill-input-label { display: flex; align-items: center; gap: 4px; height: 32px; margin: 0; padding: 0; line-height: 22px; cursor: text; }
+.fill-blank-number { flex: 0 0 12px; color: var(--mono-gray); font-size: 10px; line-height: 1; text-align: center; }
+.fill-input { display: block; flex: 1 1 0; min-width: 0; width: 100%; height: 32px; padding: 4px 6px; line-height: 22px; text-align: center; }
+.fill-completed-blank { width: max-content; min-width: min(var(--fill-width), calc(100% - 4px)); }
+.fill-completed-answer { display: block; min-height: 32px; padding: 4px 6px; border: 1px solid; border-radius: 8px; background: var(--mono-white); font-size: 16px; line-height: 22px; font-weight: 700; white-space: pre-wrap; overflow-wrap: anywhere; text-align: center; }
+.fill-completed-answer--correct { color: var(--answer-correct); border-color: var(--answer-correct); }
+.fill-completed-answer--incorrect { color: var(--answer-incorrect); border-color: var(--answer-incorrect); }
 .fill-button { min-width: 44px; min-height: 44px; padding: 10px 16px; border: 0; border-radius: 8px; font: inherit; font-size: 14px; background: var(--blue-gray); color: var(--mono-white); cursor: pointer; }
 .fill-button:disabled { opacity: .55; cursor: default; }
-.fill-summary { font-size: 14px; }
-.fill-original summary { min-height: 44px; padding-block: 10px; cursor: pointer; font-size: 14px; }
+.fill-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 12px; }
+.fill-actions > .fill-button { max-width: 100%; overflow-wrap: anywhere; }
+.fill-actions .fill-review { margin-left: auto; }
+.fill-summary { font-size: 14px; font-weight: 700; }
+.fill-summary--correct { color: var(--sage-green-text); }
+.fill-summary--incorrect { color: var(--answer-incorrect); }
 .fill-next { margin-top: 16px; }
 .fill-source { margin: 20px 0 0; }
-.fill-review { margin-top: 12px; background: var(--mono-light-gray); color: var(--blue-gray); }
+.fill-review { margin-top: 0; background: var(--mono-light-gray); color: var(--blue-gray); }
 .fill-review[aria-pressed="true"] { background: var(--sage-green); color: var(--blue-gray); opacity: 1; }
 .fill-review-notice { margin: 8px 0; font-size: 12px; color: var(--mono-gray); overflow-wrap: anywhere; }
 .fill-review-notice:empty { display: none; }
-.fill-select:focus-visible, .fill-input:focus-visible, .fill-button:focus-visible, .fill-original summary:focus-visible { outline: 2px solid var(--blue-gray); outline-offset: 3px; }
+.fill-select:focus-visible, .fill-button:focus-visible { outline: 2px solid var(--blue-gray); outline-offset: 3px; }
+/* 입력창 내부에 포커스를 표시해 인접한 원문 글자를 침범하지 않습니다. */
+.fill-input:focus { border-color: var(--blue-gray); outline: 2px solid var(--blue-gray); outline-offset: -3px; }
 
 @media (max-width: 380px) {
   .header-inner, main, .site-footer { width: calc(100% - 32px); }

@@ -1,6 +1,52 @@
 # 빈칸 학습 데이터 등록 형식
 
-현재 실제 데이터는 없습니다. `index.html`의 `id="fill-study-data"`인 JSON 영역은 빈 배열 `[]`입니다. 화면 로직은 `app.js`에 있으며 데이터와 별도로 관리합니다.
+데이터는 `index.html`의 `id="fill-study-data"`인 독립된 JSON 영역에 있습니다. 화면 로직은 `app.js`에 있습니다. GitHub Pages 워크플로를 변경하지 않고 배포할 수 있도록 현재는 JSON을 HTML 안에 보관하며, 빈칸 학습과 전체 서술형이 동일한 데이터를 읽습니다. 실제 원문은 한 번만 저장합니다.
+
+## 원문 분리 형식 (신규 자료 권장)
+
+| 필드 | 의미 |
+| --- | --- |
+| `id` | 변경하지 않는 용어 ID. 자료 개정·메뉴 이동 때 기존 ID를 다른 문제에 재사용하지 않음 |
+| `term` | 용어명 |
+| `definition` | 인용부호, 수치, 단위, 괄호, 단서를 포함한 정의 원문 전체 |
+| `blanks` | 빈칸 후보 객체 배열 |
+| `blankSets` | 위치 변경 모드에서 선택할 후보 ID 배열들의 배열 |
+| `source.law` | 법령명 |
+| `source.noticeNumber` | 고시번호 |
+| `source.effectiveDate` | 시행일 (`YYYY-MM-DD`) |
+| `source.article` | 조문 위치 |
+| `source.pdfPages` | 개발용 원문 PDF의 페이지 번호 배열 |
+
+`blanks` 객체는 `id`, `start`, `end`, `answer`, `core`, `acceptedAnswers`를 가집니다. `start`는 포함, `end`는 미포함인 JavaScript 문자열 위치(UTF-16 기준)입니다. `definition.slice(start, end)`가 `answer`와 정확히 일치해야 하며, 후보끼리 겹치면 안 됩니다. `core`와 `acceptedAnswers`는 아래 기존 형식과 같은 의미입니다.
+
+앱은 이 위치 정보로 화면용 `definitionParts`를 메모리에서만 만듭니다. 원문은 자르거나 덮어쓰지 않으며, 원문 공개 화면은 저장된 `definition`을 그대로 사용합니다. 잘못된 위치나 정답이 등록되면 자료 오류로 처리합니다. 기존 `definitionParts` 형식도 지원하므로 기존 문제 ID와 복습 기록을 마이그레이션하거나 지울 필요가 없습니다.
+
+## 현재 등록한 자료
+
+원문: 개발용 `references/01_건축물의 에너지절약설계기준(국토교통부고시)(제2025-738호)(20251231).pdf` (18쪽).
+국토교통부고시 제2025-738호, 시행 2025-12-31, 제5조제10호.
+
+| 고유 ID | 용어 | 위치 | PDF 페이지 |
+| --- | --- | --- | --- |
+| `energy-saving-design-art5-10-cha` | 외단열 | 차목 | 4 |
+| `energy-saving-design-art5-10-ka` | 방습층 | 카목 | 4~5 |
+| `energy-saving-design-art5-10-ta` | 평균 열관류율 | 타목 | 5 |
+
+PDF SHA-256: `d92b263539d5b205926deceb2a2495e672f4b7533eb72ef59ecdcef51e29a2b3`.
+PDF 4~5쪽을 이미지로 확인하고 전체 정의를 대조했습니다. PDF의 페이지 머리말·꼬리말과 조판 줄바꿈만 제거해 자연스러운 문장으로 연결했습니다. 원문 대조 테스트는 공백을 제외한 모든 문자(수치·단위·괄호·문장부호 포함)를 비교합니다. 추가 동의어는 등록하지 않았으며 모든 `acceptedAnswers`는 빈 배열입니다. 빈칸 후보와 조합은 원문에 실제 존재하는 구절만 지정했습니다.
+
+PDF는 `.gitignore`의 `/references/`로 Git 추적에서 제외됩니다. 기존 배포 워크플로는 정해진 앱 파일만 복사하므로 PDF와 `tests`, `docs`는 웹 배포 대상이 아닙니다.
+
+검증 명령:
+
+```text
+node tests/fill-study.test.cjs
+python tests/verify-pdf-source.py
+```
+
+PDF 대조 테스트에는 로컬 원본 PDF와 개발용 Python `pypdf`가 필요합니다. 웹앱 실행에는 Python이나 외부 라이브러리가 필요하지 않습니다.
+
+## 기존 조각 형식 (호환 유지)
 
 검증된 자료가 준비되면 배열에 다음 필드를 가진 객체를 등록합니다.
 
