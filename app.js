@@ -118,6 +118,8 @@ function render(moveFocus = false) {
         modes.forEach((mode, index) => list.append(card(number(index), mode.name, `#/category/${view.category.id}/${view.topicId}/${mode.id}`)));
       }
       section.append(list);
+    } else if (view.termMode?.id === 'fill') {
+      mountFillStudy(section);
     } else {
       if (view.mode) section.append(element('p', 'material-mode', view.mode.name));
       section.append(element('p', 'material-notice', view.type === 'invalid' ? '주소를 확인하거나 뒤로 가기를 눌러 주세요.' : '학습자료 준비 중'));
@@ -221,3 +223,160 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkForUpdate();
 });
 checkForUpdate();
+
+// 빈칸 학습: 데이터 형식과 순수 채점 함수를 화면 표시와 분리합니다.
+function normalizeFillAnswer(value) {
+  return value.normalize('NFC').replace(/\s/gu, '');
+}
+
+function validateFillTerms(terms) {
+  if (!Array.isArray(terms)) throw new Error('학습자료는 JSON 배열이어야 합니다.');
+  const ids = new Set();
+  const nonempty = value => typeof value === 'string' && value.trim().length > 0;
+  for (const term of terms) {
+    if (!term || !nonempty(term.id) || ids.has(term.id) || !nonempty(term.term) ||
+        !nonempty(term.source?.law) || !nonempty(term.source?.article) ||
+        !Array.isArray(term.definitionParts) || !term.definitionParts.length) throw new Error('용어 또는 출처 형식 오류');
+    ids.add(term.id);
+    const candidates = new Map();
+    for (const part of term.definitionParts) {
+      if (typeof part === 'string') continue;
+      if (!part || !nonempty(part.id) || candidates.has(part.id) || !nonempty(part.text) ||
+          typeof part.core !== 'boolean' || !Array.isArray(part.acceptedAnswers) ||
+          !part.acceptedAnswers.every(nonempty)) throw new Error('빈칸 후보 형식 오류');
+      candidates.set(part.id, part);
+    }
+    if (![...candidates.values()].some(part => part.core) ||
+        !Array.isArray(term.blankSets) || !term.blankSets.length ||
+        !term.blankSets.every(set => Array.isArray(set) && set.length > 0 && new Set(set).size === set.length &&
+          set.every(id => candidates.has(id)))) throw new Error('빈칸 조합 형식 오류');
+  }
+  return terms;
+}
+
+function fillBlankIds(term, mode, random = Math.random) {
+  if (mode === 'fixed') return term.definitionParts.filter(part => typeof part !== 'string' && part.core).map(part => part.id);
+  return [...term.blankSets[Math.floor(random() * term.blankSets.length)]];
+}
+
+function gradeFillAnswer(candidate, input) {
+  const answer = normalizeFillAnswer(input);
+  return answer.length > 0 && [candidate.text, ...candidate.acceptedAnswers]
+    .some(value => normalizeFillAnswer(value) === answer);
+}
+
+async function readFillTerms() {
+  const data = document.querySelector('#fill-study-data');
+  if (!data) throw new Error('학습자료 설정이 없습니다.');
+  const source = data.getAttribute('data-src');
+  if (!source) return validateFillTerms(JSON.parse(data.textContent));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(new URL(source, location.href).href, { cache: 'no-store', signal: controller.signal });
+    if (!response.ok) throw new Error('학습자료 요청 실패');
+    return validateFillTerms(await response.json());
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function mountFillStudy(section) {
+  const host = element('div', 'fill-study');
+  host.append(element('p', 'material-notice', '학습자료를 확인하고 있습니다.'));
+  section.append(host);
+  try {
+    const terms = await readFillTerms();
+    if (!host.isConnected) return; // 이전 화면의 늦은 응답은 반영하지 않습니다.
+    if (!terms.length) {
+      host.replaceChildren(element('p', 'material-notice', '등록된 학습자료가 없습니다'));
+      return;
+    }
+    let index = 0;
+    let mode = 'fixed';
+    function drawQuestion() {
+      host.replaceChildren();
+      const term = terms[index];
+      const selected = new Set(fillBlankIds(term, mode));
+      const modeLabel = element('label', 'fill-mode', '빈칸 모드');
+      const select = element('select', 'fill-select');
+      for (const [value, name] of [['fixed', '핵심 빈칸 고정'], ['varied', '빈칸 위치 변경']]) {
+        const option = element('option', '', name);
+        option.value = value;
+        select.append(option);
+      }
+      select.value = mode;
+      select.addEventListener('change', () => { mode = select.value; drawQuestion(); });
+      modeLabel.append(select);
+      host.append(modeLabel);
+      const question = element('form', 'fill-question');
+      question.append(element('p', 'fill-progress', `${index + 1} / ${terms.length}`));
+      question.append(element('h2', 'fill-term', term.term));
+      const definition = element('p', 'fill-definition');
+      const fields = [];
+      for (const part of term.definitionParts) {
+        if (typeof part === 'string' || !selected.has(part.id)) {
+          definition.append(element('span', '', typeof part === 'string' ? part : part.text));
+          continue;
+        }
+        const field = element('span', 'fill-field');
+        const label = element('label', 'fill-input-label', `빈칸 ${fields.length + 1}`);
+        const input = element('input', 'fill-input');
+        input.type = 'text';
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+        input.setAttribute('autocorrect', 'off');
+        input.setAttribute('autocapitalize', 'off');
+        const result = element('span', 'fill-result');
+        result.id = `fill-result-${fields.length + 1}`;
+        input.setAttribute('aria-describedby', result.id);
+        label.append(input);
+        field.append(label, result);
+        definition.append(field);
+        fields.push({ candidate: part, input, result });
+      }
+      question.append(definition);
+      const summary = element('p', 'fill-summary');
+      summary.setAttribute('role', 'status');
+      const grade = element('button', 'fill-button', '채점하기');
+      grade.type = 'submit';
+      const reveal = element('div', 'fill-reveal');
+      question.addEventListener('submit', event => {
+        event.preventDefault();
+        let correctCount = 0;
+        for (const field of fields) {
+          const correct = gradeFillAnswer(field.candidate, field.input.value);
+          if (correct) correctCount++;
+          field.result.textContent = `${correct ? '정답' : '오답'} · 정답: ${field.candidate.text}`;
+          if (field.candidate.acceptedAnswers.length) field.result.textContent += ` / 허용 정답: ${field.candidate.acceptedAnswers.join(', ')}`;
+          field.input.setAttribute('aria-invalid', String(!correct));
+          field.input.readOnly = true;
+        }
+        summary.textContent = `${fields.length}개 중 ${correctCount}개 정답`;
+        grade.disabled = true;
+        const details = element('details', 'fill-original');
+        details.append(element('summary', '', '정의 원문 확인'));
+        details.append(element('p', 'fill-definition', term.definitionParts.map(part => typeof part === 'string' ? part : part.text).join('')));
+        reveal.replaceChildren(details);
+      });
+      question.append(grade, summary, reveal);
+      question.append(element('p', 'fill-source', `${term.source.law} · ${term.source.article}`));
+      const next = element('button', 'fill-button fill-next', terms.length > 1 ? '다음 문제' : '다시 풀기');
+      next.type = 'button';
+      next.addEventListener('click', () => {
+        index = (index + 1) % terms.length;
+        drawQuestion(); // 입력값·결과는 새 문제 DOM을 만들며 초기화합니다.
+        host.querySelector('input')?.focus({ preventScroll: true });
+      });
+      host.append(question, next);
+    }
+    drawQuestion();
+  } catch {
+    if (!host.isConnected) return;
+    const notice = element('p', 'material-notice', '학습자료를 불러오지 못했습니다. 연결 또는 자료 형식을 확인해 주세요.');
+    const retry = element('button', 'fill-button', '다시 확인');
+    retry.type = 'button';
+    retry.addEventListener('click', () => { host.remove(); mountFillStudy(section); });
+    host.replaceChildren(notice, retry);
+  }
+}

@@ -107,6 +107,27 @@ body[data-screen="sage"] .card-number { background: var(--sage-green); color: va
 body[data-screen="ivory"] .detail-panel { background: var(--warm-ivory); border: 1px solid var(--border-color); }
 .material-mode { margin: 16px 0 0; font-size: 16px; font-weight: 700; }
 .material-notice { margin: 24px 0 0; color: var(--mono-gray); }
+.fill-study { margin-top: 24px; }
+.fill-mode { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.fill-select, .fill-input { font: inherit; font-size: 16px; color: var(--blue-gray); background: var(--mono-white); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; min-height: 44px; max-width: 100%; }
+.fill-question { margin-top: 20px; padding: 18px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--mono-white); }
+.fill-progress, .fill-source { font-size: 12px; color: var(--mono-gray); }
+.fill-progress { margin: 0 0 8px; }
+.fill-term { font-weight: 700; }
+.fill-definition { line-height: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fill-field { display: inline-flex; flex-direction: column; vertical-align: middle; width: 190px; max-width: 100%; margin: 4px 2px; white-space: normal; }
+.fill-input-label { font-size: 12px; color: var(--mono-gray); }
+.fill-input { display: block; width: 100%; }
+.fill-input[aria-invalid="true"] { border-color: var(--blue-gray); border-style: dashed; }
+.fill-input[aria-invalid="false"] { border: 2px solid var(--sage-green); }
+.fill-result { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.fill-button { min-width: 44px; min-height: 44px; padding: 10px 16px; border: 0; border-radius: 8px; font: inherit; font-size: 14px; background: var(--blue-gray); color: var(--mono-white); cursor: pointer; }
+.fill-button:disabled { opacity: .55; cursor: default; }
+.fill-summary { font-size: 14px; }
+.fill-original summary { min-height: 44px; padding-block: 10px; cursor: pointer; font-size: 14px; }
+.fill-next { margin-top: 16px; }
+.fill-source { margin: 20px 0 0; }
+.fill-select:focus-visible, .fill-input:focus-visible, .fill-button:focus-visible, .fill-original summary:focus-visible { outline: 2px solid var(--blue-gray); outline-offset: 3px; }
 
 @media (max-width: 380px) {
   .header-inner, main, .site-footer { width: calc(100% - 32px); }
